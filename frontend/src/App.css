@@ -9,3 +9,4 @@ html, body { margin: 0; padding: 0; background: #040814; color: #d6e8f5;
 * { scrollbar-width: thin; scrollbar-color: rgba(122,240,255,0.18) transparent; }
 button { all: unset; box-sizing: border-box; }
 button:focus-visible { outline: 2px solid rgba(122,240,255,0.8); outline-offset: 2px; }
+textarea:focus, select:focus { outline: none; border-color: rgba(122,240,255,0.55) !important; box-shadow: 0 0 0 1px rgba(122,240,255,0.25); }

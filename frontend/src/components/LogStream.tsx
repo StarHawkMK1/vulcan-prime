@@ -58,7 +58,7 @@ export function LogStream({ opId, onTriage, onDone }: Props) {
       const event: LogEvent = JSON.parse(ev.data as string);
       if (event.type === 'triage' && event.report) onTriage?.(event.report);
       if (event.type === 'done') { onDone?.(); es.close(); }
-      if (event.type === 'error') es.close();
+      if (event.type === 'error') { onDone?.(); es.close(); }
 
       if (containerRef.current) {
         const line = document.createElement('div');

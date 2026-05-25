@@ -64,7 +64,7 @@ export function Ingest() {
       <div style={{ padding: 22, display: 'flex', flexDirection: 'column', gap: 12, overflow: 'auto' }}>
         <NebLabel glow>Stream Output</NebLabel>
         <LogStream opId={opId}
-          onTriage={(report) => setTriage({ opId: opId!, report })}
+          onTriage={(report) => { if (opId) setTriage({ opId, report }); }}
           onDone={() => setRunning(false)} />
         {triage && (
           <TriagePanel opId={triage.opId} report={triage.report}

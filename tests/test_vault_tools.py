@@ -68,3 +68,8 @@ def test_execute_tool_vault_read(vault_dir):
 def test_execute_tool_unknown_raises(vault_dir):
     with pytest.raises(ValueError, match="Unknown tool"):
         vault_tools.execute_tool("nonexistent", {})
+
+
+def test_path_traversal_absolute_path_denied(vault_dir):
+    with pytest.raises(ValueError, match="Path traversal"):
+        vault_tools.vault_read("/etc/passwd")

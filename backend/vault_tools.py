@@ -14,7 +14,7 @@ def _resolved(rel_path: str) -> Path:
     if _vault_root is None:
         raise RuntimeError("vault_root not set — call set_vault_root() first")
     target = (_vault_root / rel_path).resolve()
-    if not str(target).startswith(str(_vault_root)):
+    if not target.is_relative_to(_vault_root):
         raise ValueError(f"Path traversal denied: {rel_path!r}")
     return target
 
@@ -31,11 +31,12 @@ def vault_write(path: str, content: str) -> str:
 
 
 def vault_list(dir: str) -> list[str]:
+    root = _vault_root
     p = _resolved(dir)
     if not p.is_dir():
         return []
     return [
-        str(f.relative_to(_vault_root)).replace("\\", "/")
+        str(f.relative_to(root)).replace("\\", "/")
         for f in sorted(p.rglob("*.md"))
     ]
 
@@ -57,7 +58,10 @@ def execute_tool(name: str, args: dict[str, Any]) -> Any:
     }
     if name not in dispatch:
         raise ValueError(f"Unknown tool: {name!r}")
-    return dispatch[name]()
+    try:
+        return dispatch[name]()
+    except KeyError as exc:
+        raise ValueError(f"Missing required argument for tool {name!r}: {exc}") from exc
 
 
 VAULT_TOOLS = [

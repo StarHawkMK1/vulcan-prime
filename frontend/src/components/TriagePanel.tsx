@@ -1,5 +1,5 @@
 import React from 'react';
-import { TriageReport } from './LogStream';
+import type { TriageReport } from './LogStream';
 import { sendApproval } from '../api';
 import { nebTokens as t, NebPanel, NebLabel, NebButton } from '../design';
 

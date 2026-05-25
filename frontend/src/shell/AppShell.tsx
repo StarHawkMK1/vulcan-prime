@@ -1,6 +1,8 @@
-import { ReactNode, useState } from 'react';
+import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { nebTokens as t, NebulaBackdrop } from '../design';
-import { NAV, ScreenId } from './nav';
+import { NAV } from './nav';
+import type { ScreenId } from './nav';
 import { NavIcon } from './NavIcon';
 
 interface Props {

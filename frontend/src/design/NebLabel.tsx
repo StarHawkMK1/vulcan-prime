@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { nebTokens as t } from './tokens';
 
 export function NebLabel({ children, glow }: { children: ReactNode; glow?: boolean }) {

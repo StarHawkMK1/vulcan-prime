@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import type { CSSProperties } from 'react';
-import { nebTokens as t, NebPanel, NebLabel, NebButton } from '../design';
+import { nebTokens as t, NebLabel, NebButton } from '../design';
 import { startIngest, getVaultList } from '../api';
-import { LogStream, TriageReport } from '../components/LogStream';
+import { LogStream } from '../components/LogStream';
+import type { TriageReport } from '../components/LogStream';
 import { TriagePanel } from '../components/TriagePanel';
 import { ProviderSelect } from '../components/ProviderSelect';
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { nebTokens as t, NebPanel, NebLabel, NebButton } from '../design';
-import { getStatus, StatusResponse } from '../api';
+import { nebTokens as t, NebPanel, NebLabel } from '../design';
+import { getStatus } from '../api';
+import type { StatusResponse } from '../api';
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();

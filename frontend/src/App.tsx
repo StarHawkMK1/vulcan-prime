@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import './App.css';
 import { AppShell } from './shell/AppShell';
-import { ScreenId } from './shell/nav';
+import type { ScreenId } from './shell/nav';
 import { Dashboard } from './screens/Dashboard';
 import { Ingest } from './screens/Ingest';
 import { Query } from './screens/Query';
@@ -10,7 +10,7 @@ import { Stub } from './screens/Stub';
 
 const ROUTES: Record<ScreenId, {
   breadcrumb: string[]; status?: string; env?: string;
-  component: () => JSX.Element;
+  component: () => React.JSX.Element;
 }> = {
   dashboard:   { breadcrumb: ['Workspace', 'Dashboard'], status: 'LIVE', env: 'local', component: () => <Dashboard /> },
   ingest:      { breadcrumb: ['Knowledge', 'Ingest'], env: 'local', component: () => <Ingest /> },

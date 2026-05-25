@@ -7,8 +7,12 @@ interface Props { opId: string; report: TriageReport; onResolved: () => void }
 
 export function TriagePanel({ opId, report, onResolved }: Props) {
   async function handle(approved: boolean) {
-    await sendApproval(opId, approved);
-    onResolved();
+    try {
+      await sendApproval(opId, approved);
+      onResolved();
+    } catch {
+      console.error('sendApproval failed');
+    }
   }
 
   const FIELD: React.CSSProperties = { fontSize: 9.5, fontFamily: t.mono, color: t.textFaint,

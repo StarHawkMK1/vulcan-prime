@@ -19,7 +19,7 @@ export function NebButton({ children, primary, ghost, onClick, disabled, style }
     ...style,
   };
   if (primary) return (
-    <button disabled={disabled} onClick={onClick} style={{
+    <button type="button" disabled={disabled} onClick={onClick} style={{
       ...base,
       background: 'linear-gradient(180deg, rgba(122,240,255,0.18), rgba(47,129,247,0.18))',
       color: t.cyan, border: `1px solid ${t.borderGlow}`,
@@ -27,7 +27,7 @@ export function NebButton({ children, primary, ghost, onClick, disabled, style }
     }}>{children}</button>
   );
   return (
-    <button disabled={disabled} onClick={onClick} style={{
+    <button type="button" disabled={disabled} onClick={onClick} style={{
       ...base, background: ghost ? 'transparent' : t.bgGlass,
       color: t.text, border: `1px solid ${t.border}`,
     }}>{children}</button>

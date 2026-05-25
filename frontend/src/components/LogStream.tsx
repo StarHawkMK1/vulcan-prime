@@ -47,6 +47,10 @@ function formatEvent(e: LogEvent): string {
 export function LogStream({ opId, onTriage, onDone }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const esRef = useRef<EventSource | null>(null);
+  const onTriageRef = useRef(onTriage);
+  const onDoneRef = useRef(onDone);
+
+  useEffect(() => { onTriageRef.current = onTriage; onDoneRef.current = onDone; });
 
   useEffect(() => {
     if (!opId) return;
@@ -56,9 +60,9 @@ export function LogStream({ opId, onTriage, onDone }: Props) {
 
     es.onmessage = (ev: MessageEvent) => {
       const event: LogEvent = JSON.parse(ev.data as string);
-      if (event.type === 'triage' && event.report) onTriage?.(event.report);
-      if (event.type === 'done') { onDone?.(); es.close(); }
-      if (event.type === 'error') { onDone?.(); es.close(); }
+      if (event.type === 'triage' && event.report) onTriageRef.current?.(event.report);
+      if (event.type === 'done') { onDoneRef.current?.(); es.close(); }
+      if (event.type === 'error') { onDoneRef.current?.(); es.close(); }
 
       if (containerRef.current) {
         const line = document.createElement('div');
@@ -71,6 +75,10 @@ export function LogStream({ opId, onTriage, onDone }: Props) {
         containerRef.current.appendChild(line);
         containerRef.current.scrollTop = containerRef.current.scrollHeight;
       }
+    };
+    es.onerror = () => {
+      onDoneRef.current?.();
+      es.close();
     };
     return () => es.close();
   }, [opId]);

@@ -1,0 +1,9 @@
+html, body { margin: 0; padding: 0; background: #040814; color: #d6e8f5;
+  font-family: 'Geist', ui-sans-serif, system-ui, sans-serif; }
+* { box-sizing: border-box; }
+#root { width: 100vw; height: 100vh; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(122,240,255,0.18); border-radius: 0; }
+::-webkit-scrollbar-thumb:hover { background: rgba(122,240,255,0.35); }
+button { all: unset; box-sizing: border-box; }

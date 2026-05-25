@@ -21,8 +21,13 @@ def client(tmp_path):
     import vault_tools
     vault_tools.set_vault_root(str(tmp_path))
 
+    import stream as stream_mod
+    stream_mod._ops.clear()
+    stream_mod._recent_ops.clear()
+
     with TestClient(main_mod.app) as c:
         yield c
+        main_mod._background_tasks.clear()
 
 
 def test_ingest_returns_op_id(client):

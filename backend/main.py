@@ -3,7 +3,6 @@ import asyncio
 import os
 import uuid
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -21,16 +20,22 @@ from agents.lint import LINT_SYSTEM_PROMPT, get_lint_user_message
 load_dotenv()
 vault_tools.set_vault_root(os.getenv("VAULT_PATH", "./vault"))
 
+_background_tasks: set[asyncio.Task] = set()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     yield
+    for task in list(_background_tasks):
+        task.cancel()
+    await asyncio.gather(*_background_tasks, return_exceptions=True)
 
 
 app = FastAPI(lifespan=lifespan)
+_cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:8080").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8080"],
+    allow_origins=_cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -71,9 +76,11 @@ async def ingest(req: IngestRequest):
     stream_mod.create_op(op_id)
     system = _base_system_prompt() + INGEST_SYSTEM_PROMPT
     msg = get_ingest_user_message(req.source_path)
-    asyncio.create_task(
+    task = asyncio.create_task(
         run_agent(op_id, system, msg, req.provider, req.model, get_ingest_tools())
     )
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
     stream_mod.record_op("ingest", req.source_path)
     return {"op_id": op_id}
 
@@ -84,7 +91,9 @@ async def query(req: QueryRequest):
     stream_mod.create_op(op_id)
     system = _base_system_prompt() + QUERY_SYSTEM_PROMPT
     msg = get_query_user_message(req.question, req.file_back)
-    asyncio.create_task(run_agent(op_id, system, msg, req.provider, req.model))
+    task = asyncio.create_task(run_agent(op_id, system, msg, req.provider, req.model))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
     stream_mod.record_op("query", req.question[:80])
     return {"op_id": op_id}
 
@@ -94,7 +103,9 @@ async def lint(req: LintRequest):
     op_id = str(uuid.uuid4())
     stream_mod.create_op(op_id)
     system = _base_system_prompt() + LINT_SYSTEM_PROMPT
-    asyncio.create_task(run_agent(op_id, system, get_lint_user_message(), req.provider, req.model))
+    task = asyncio.create_task(run_agent(op_id, system, get_lint_user_message(), req.provider, req.model))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
     stream_mod.record_op("lint", "full wiki scan")
     return {"op_id": op_id}
 
@@ -118,13 +129,11 @@ async def approve(op_id: str, req: ApproveRequest):
 
 @app.get("/api/status")
 async def status():
-    vault_path = Path(os.getenv("VAULT_PATH", "./vault"))
-    wiki_dir = vault_path / "wiki"
-    pages = len(list(wiki_dir.rglob("*.md"))) if wiki_dir.exists() else 0
+    wiki_paths = vault_tools.vault_list("wiki")
     return {
         "tokens": 0,
         "cost": 0.0,
-        "pages": pages,
+        "pages": len(wiki_paths),
         "recent_ops": stream_mod.get_recent_ops(),
     }
 

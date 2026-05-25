@@ -28,10 +28,11 @@ export async function startLint(provider: string, model: string): Promise<string
 }
 
 export async function sendApproval(opId: string, approved: boolean): Promise<void> {
-  await fetch(`${BASE}/approve/${opId}`, {
+  const res = await fetch(`${BASE}/approve/${opId}`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ approved }),
   });
+  if (!res.ok) throw new Error(`approval failed: ${res.status}`);
 }
 
 export function openEventStream(opId: string): EventSource {
@@ -44,9 +45,13 @@ export interface StatusResponse {
 }
 
 export async function getStatus(): Promise<StatusResponse> {
-  return (await fetch(`${BASE}/status`)).json();
+  const res = await fetch(`${BASE}/status`);
+  if (!res.ok) throw new Error(`status failed: ${res.status}`);
+  return res.json();
 }
 
 export async function getVaultList(dir: string): Promise<string[]> {
-  return ((await (await fetch(`${BASE}/vault/list?dir=${encodeURIComponent(dir)}`)).json()).paths) as string[];
+  const res = await fetch(`${BASE}/vault/list?dir=${encodeURIComponent(dir)}`);
+  if (!res.ok) throw new Error(`vault/list failed: ${res.status}`);
+  return ((await res.json()).paths) as string[];
 }

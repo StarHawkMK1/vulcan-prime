@@ -31,16 +31,16 @@ export function ProviderSelect({ provider, model, onProviderChange, onModelChang
   return (
     <>
       <div>
-        <label style={FIELD_LABEL}>Provider</label>
-        <select value={provider} onChange={(e) => handleProvider(e.target.value)} style={SELECT}>
+        <label htmlFor="vp-provider" style={FIELD_LABEL}>Provider</label>
+        <select id="vp-provider" value={provider} onChange={(e) => handleProvider(e.target.value)} style={SELECT}>
           <option value="anthropic">Anthropic</option>
           <option value="openai">OpenAI</option>
           <option value="gemini">Gemini</option>
         </select>
       </div>
       <div>
-        <label style={FIELD_LABEL}>Model</label>
-        <select value={model} onChange={(e) => onModelChange(e.target.value)} style={SELECT}>
+        <label htmlFor="vp-model" style={FIELD_LABEL}>Model</label>
+        <select id="vp-model" value={model} onChange={(e) => onModelChange(e.target.value)} style={SELECT}>
           {models.map((m) => <option key={m} value={m}>{m}</option>)}
         </select>
       </div>

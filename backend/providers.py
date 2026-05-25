@@ -15,21 +15,3 @@ def build_model_string(provider: str, model: str) -> str:
       gemini/gemini-1.5-pro
     """
     return f"{provider.lower()}/{model}"
-
-
-async def astream_completion(
-    provider: str,
-    model: str,
-    messages: list[dict],
-    tools: list[dict] | None = None,
-):
-    """Return an async-iterable stream of LiteLLM chunks."""
-    kwargs: dict = {
-        "model": build_model_string(provider, model),
-        "messages": messages,
-        "stream": True,
-    }
-    if tools:
-        kwargs["tools"] = tools
-        kwargs["tool_choice"] = "auto"
-    return await litellm.acompletion(**kwargs)

@@ -108,7 +108,7 @@ async def run_agent(
             messages.append(assistant_msg)
 
             if not tool_calls:
-                await stream_mod.send_event(op_id, {"type": "done", "summary": full_content})
+                await stream_mod.send_event(op_id, {"type": "done", "summary": full_content or "Done."})
                 return
 
             for tc in tool_calls.values():

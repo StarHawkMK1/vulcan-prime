@@ -32,7 +32,7 @@ def test_insert_event(db):
     row = db.con.execute("SELECT * FROM usage_events").fetchone()
     assert row is not None
     assert row[1] == "claude_code"
-    assert row[4] == "abc.jsonl"
+    assert row["session_id"] == "abc.jsonl"
 
 
 def test_duplicate_insert_ignored(db):
@@ -69,3 +69,13 @@ def test_query_window(db):
     rows = db.query_window("claude_code", since_ts=now - 18000)
     assert len(rows) == 1
     assert rows[0]["session_id"] == "s1"
+
+
+def test_query_range(db):
+    db.insert_event("claude_code", 1700000100, "m", "p", "s1", 100, 50, 0, 0, 0.01)
+    db.insert_event("claude_code", 1700000200, "m", "p", "s2", 200, 100, 0, 0, 0.02)
+    db.insert_event("claude_code", 1700000400, "m", "p", "s3", 300, 150, 0, 0, 0.03)
+    rows = db.query_range("claude_code", since_ts=1700000100, until_ts=1700000400)
+    assert len(rows) == 2  # s3 at ts=400 is excluded (half-open interval)
+    assert rows[0]["session_id"] == "s1"
+    assert rows[1]["session_id"] == "s2"

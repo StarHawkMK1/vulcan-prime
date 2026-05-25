@@ -1,5 +1,4 @@
 from __future__ import annotations
-import asyncio
 import json
 from typing import Any
 import litellm
@@ -61,7 +60,8 @@ async def run_agent(
     ]
 
     try:
-        while True:
+        MAX_ITERATIONS = 20
+        for _iteration in range(MAX_ITERATIONS):
             response = await litellm.acompletion(
                 model=model_str,
                 messages=messages,
@@ -75,6 +75,8 @@ async def run_agent(
             tool_calls: dict[int, dict[str, str]] = {}
 
             async for chunk in response:
+                if not chunk.choices:
+                    continue
                 delta = chunk.choices[0].delta
 
                 if delta.content:
@@ -88,12 +90,12 @@ async def run_agent(
                             tool_calls[idx] = {"id": "", "name": "", "args_str": ""}
                         if tc.id:
                             tool_calls[idx]["id"] = tc.id
-                        if tc.function.name:
+                        if tc.function and tc.function.name:
                             tool_calls[idx]["name"] += tc.function.name
-                        if tc.function.arguments:
+                        if tc.function and tc.function.arguments:
                             tool_calls[idx]["args_str"] += tc.function.arguments
 
-            assistant_msg: dict[str, Any] = {"role": "assistant", "content": full_content}
+            assistant_msg: dict[str, Any] = {"role": "assistant", "content": full_content or None}
             if tool_calls:
                 assistant_msg["tool_calls"] = [
                     {
@@ -111,13 +113,22 @@ async def run_agent(
 
             for tc in tool_calls.values():
                 name = tc["name"]
-                args = json.loads(tc["args_str"]) if tc["args_str"] else {}
+                try:
+                    args = json.loads(tc["args_str"]) if tc["args_str"] else {}
+                except json.JSONDecodeError as exc:
+                    result = f"error: invalid JSON arguments: {exc}"
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tc["id"],
+                        "content": result,
+                    })
+                    continue
 
                 await stream_mod.send_event(op_id, {"type": "tool_call", "name": name, "args": args})
 
                 if name == "request_triage_approval":
                     await stream_mod.send_event(op_id, {"type": "triage", "report": args})
-                    approved = await stream_mod.wait_for_approval(op_id)
+                    approved = await stream_mod.wait_for_approval(op_id, timeout=300.0)
                     if not approved:
                         await stream_mod.send_event(op_id, {"type": "done", "summary": "Cancelled by user."})
                         return
@@ -133,6 +144,9 @@ async def run_agent(
                     "tool_call_id": tc["id"],
                     "content": result,
                 })
+        else:
+            await stream_mod.send_event(op_id, {"type": "error", "message": "Max iterations exceeded"})
+            return
 
     except Exception as exc:
         await stream_mod.send_event(op_id, {"type": "error", "message": str(exc)})

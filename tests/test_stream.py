@@ -78,3 +78,10 @@ async def test_recent_ops_capped_at_20():
     for i in range(25):
         stream.record_op("lint", f"run-{i}")
     assert len(stream.get_recent_ops()) == 20
+
+
+async def test_op_cleaned_up_after_done():
+    stream.create_op("op1")
+    await stream.send_event("op1", {"type": "done", "summary": "finished"})
+    await drain_stream("op1")
+    assert "op1" not in stream._ops

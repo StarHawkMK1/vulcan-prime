@@ -19,6 +19,8 @@ _recent_ops: deque[dict[str, Any]] = deque(maxlen=20)
 
 
 def create_op(op_id: str) -> None:
+    if op_id in _ops:
+        raise ValueError(f"op {op_id!r} already exists")
     _ops[op_id] = _OpState()
 
 
@@ -41,11 +43,14 @@ async def set_approval(op_id: str, approved: bool) -> bool:
     return True
 
 
-async def wait_for_approval(op_id: str) -> bool:
+async def wait_for_approval(op_id: str, timeout: float | None = None) -> bool:
     state = _ops.get(op_id)
     if not state:
         return False
-    await state.approval_event.wait()
+    try:
+        await asyncio.wait_for(state.approval_event.wait(), timeout=timeout)
+    except asyncio.TimeoutError:
+        return False
     state.approval_event.clear()
     return state.approval_result
 
@@ -55,11 +60,14 @@ async def event_stream(op_id: str) -> AsyncIterator[str]:
     if not state:
         yield f"data: {json.dumps({'type': 'error', 'message': f'op {op_id!r} not found'})}\n\n"
         return
-    while True:
-        event = await state.queue.get()
-        yield f"data: {json.dumps(event)}\n\n"
-        if event.get("type") in ("done", "error"):
-            break
+    try:
+        while True:
+            event = await state.queue.get()
+            yield f"data: {json.dumps(event)}\n\n"
+            if event.get("type") in ("done", "error"):
+                break
+    finally:
+        _ops.pop(op_id, None)
 
 
 def record_op(op_type: str, detail: str) -> None:

@@ -19,6 +19,7 @@ def bootstrap(vault_path: str) -> None:
         "agents",
         "feed",
         "experiments",
+        ".metering",
     ]
     for d in dirs:
         (root / d).mkdir(parents=True, exist_ok=True)

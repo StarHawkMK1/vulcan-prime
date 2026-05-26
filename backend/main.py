@@ -192,7 +192,8 @@ async def metering_dashboard():
 @app.post("/api/metering/refresh")
 async def metering_refresh():
     await _do_scan()
-    return {"ok": True, "scanned_at": __import__("datetime").datetime.utcnow().isoformat() + "Z"}
+    from datetime import datetime, timezone
+    return {"ok": True, "scanned_at": datetime.now(timezone.utc).isoformat()}
 
 
 @app.post("/api/metering/export")

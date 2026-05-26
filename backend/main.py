@@ -44,10 +44,10 @@ _background_tasks: set[asyncio.Task] = set()
 
 async def _do_scan() -> None:
     global _ag_status, _ag_last_seen
-    cc_events = scan_claude_code()
+    cc_events = await asyncio.to_thread(scan_claude_code)
     for e in cc_events:
         _metering_db.insert_event(**e)
-    cx_events = scan_codex()
+    cx_events = await asyncio.to_thread(scan_codex)
     for e in cx_events:
         _metering_db.insert_event(**e)
     ag = await fetch_antigravity_ls(_AG_LS_PORT)

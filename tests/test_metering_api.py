@@ -16,12 +16,14 @@ os.environ.setdefault("METERING_SCAN_INTERVAL", "300")
 
 
 @pytest.fixture
-def client(tmp_path):
+def client(tmp_path, monkeypatch):
     os.environ["VAULT_PATH"] = str(tmp_path)
     os.environ["METERING_DB_PATH"] = str(tmp_path / "m.db")
     (tmp_path / "wiki").mkdir(parents=True)
     import importlib, main as m
     importlib.reload(m)
+    monkeypatch.setattr(m, "scan_claude_code", lambda: [])
+    monkeypatch.setattr(m, "scan_codex", lambda: [])
     from fastapi.testclient import TestClient
     with TestClient(m.app) as c:
         yield c
@@ -47,8 +49,11 @@ def test_metering_refresh_ok(client):
 
 
 def test_metering_export_creates_vault_file(client, tmp_path):
+    from datetime import datetime, timezone
     metering_dir = tmp_path / ".metering"
     metering_dir.mkdir()
     resp = client.post("/api/metering/export")
     assert resp.status_code == 200
     assert resp.json()["ok"] is True
+    period = datetime.now(timezone.utc).strftime("%Y-%m")
+    assert (metering_dir / f"{period}.md").exists()

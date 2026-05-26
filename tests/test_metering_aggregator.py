@@ -16,7 +16,7 @@ def db(tmp_path):
     return d
 
 
-# Frozen "now" = 1700100000 (Mon 2023-11-16 00:00:00 UTC happens to work)
+# Frozen "now" = 1700100000 (Thu 2023-11-16 02:00:00 UTC)
 # Week starts Mon 2023-11-13 00:00:00 UTC = 1699833600
 NOW = 1700100000
 WEEK_START = 1699833600   # Monday 00:00 UTC of the week containing NOW
@@ -70,11 +70,21 @@ def test_today_sums_today(db):
 
 
 def test_trend_7d_returns_7_entries(db):
+    # Insert event in the "today" bucket (NOW is the current day)
+    _ins(db, "claude_code", NOW - 3600, 200, 100, 0.01, "trend1")
     trend = get_trend_7d(["claude_code", "codex", "antigravity"], db, now=NOW)
     assert len(trend) == 7
+    # Oldest entry is 6 days ago, newest is today
+    from datetime import datetime, timezone, timedelta
+    today_dt = datetime.fromtimestamp(NOW, tz=timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    expected_dates = [(today_dt - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(6, -1, -1)]
+    actual_dates = [e["date"] for e in trend]
+    assert actual_dates == expected_dates
+    # The last (today) entry should contain the inserted event's tokens
+    today_entry = trend[-1]
+    assert today_entry["claude_code"] == 300  # 200 + 100
+    assert today_entry["cost_usd"] == 0.01
     for entry in trend:
-        assert "date" in entry
-        assert "claude_code" in entry
         assert "codex" in entry
         assert "antigravity" in entry
         assert "cost_usd" in entry
@@ -97,3 +107,14 @@ def test_build_dashboard_payload_shape(db):
     assert "weekly_total" in payload
     assert payload["tools"]["claude_code"]["status"] == "live"
     assert payload["tools"]["antigravity"]["status"] == "offline"
+    # Claude Code weekly should include the inserted event (300 tokens, $0.005)
+    cc_weekly = payload["tools"]["claude_code"]["weekly"]
+    assert cc_weekly["tokens"] == 300
+    assert abs(cc_weekly["cost_usd"] - 0.005) < 1e-9
+    # weekly_total should sum all tools
+    assert payload["weekly_total"]["tokens"] == 300
+    assert abs(payload["weekly_total"]["cost_usd"] - 0.005) < 1e-9
+    # Antigravity offline — weekly should be None sentinel
+    ag_weekly = payload["tools"]["antigravity"]["weekly"]
+    assert ag_weekly["tokens"] is None
+    assert ag_weekly["cost_usd"] is None

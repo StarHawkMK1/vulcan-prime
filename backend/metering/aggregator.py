@@ -104,7 +104,9 @@ def build_dashboard_payload(
         "window_5h": get_window_5h("antigravity", db, now, limits["ag_5h"])
                      if ag_status == "live" else
                      {"tokens": None, "limit": limits["ag_5h"], "resets_in_sec": None},
-        "weekly":    get_weekly("antigravity", db, week_start_ts, limits["ag_weekly"]),
+        "weekly":    get_weekly("antigravity", db, week_start_ts, limits["ag_weekly"])
+                     if ag_status == "live" else
+                     {"tokens": None, "limit": limits["ag_weekly"], "cost_usd": None},
         "today":     get_today("antigravity", db, today_start_ts)
                      if ag_status == "live" else
                      {"tokens": None, "cost_usd": None, "sessions": None},

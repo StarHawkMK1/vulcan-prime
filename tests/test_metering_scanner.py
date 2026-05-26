@@ -69,6 +69,21 @@ def test_parse_claude_code_missing_cost_defaults_zero(tmp_path):
     assert events[0]["cost_usd"] == 0.0
 
 
+def test_parse_claude_code_explicit_zero_cost_preserved(tmp_path):
+    entry = {
+        "type": "assistant",
+        "timestamp": "2026-05-25T10:00:00.000Z",
+        "message": {"model": "claude-opus-4-7",
+                    "usage": {"input_tokens": 1000, "output_tokens": 500,
+                              "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0}},
+        "costUSD": 0.0,
+    }
+    f = tmp_path / "s.jsonl"
+    f.write_text(json.dumps(entry) + "\n", encoding="utf-8")
+    events = parse_claude_code_jsonl(str(f), project="p")
+    assert events[0]["cost_usd"] == 0.0
+
+
 def test_parse_claude_code_malformed_line_skipped(tmp_path):
     f = tmp_path / "s.jsonl"
     f.write_text("not json\n", encoding="utf-8")

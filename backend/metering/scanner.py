@@ -33,6 +33,8 @@ def _parse_ts(ts_str: str | None) -> int:
         return int(time.time())
     try:
         dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
         return int(dt.timestamp())
     except Exception:
         return int(time.time())
@@ -51,7 +53,7 @@ def parse_claude_code_jsonl(path: str, project: str) -> list[dict[str, Any]]:
                     continue
                 try:
                     obj = json.loads(line)
-                except json.JSONDecodeError:
+                except (json.JSONDecodeError, ValueError, TypeError, KeyError):
                     continue
                 if obj.get("type") != "assistant":
                     continue
@@ -62,7 +64,8 @@ def parse_claude_code_jsonl(path: str, project: str) -> list[dict[str, Any]]:
                 output_t = int(usage.get("output_tokens", 0))
                 cache_w  = int(usage.get("cache_creation_input_tokens", 0))
                 cache_r  = int(usage.get("cache_read_input_tokens", 0))
-                cost     = float(obj.get("costUSD") or _calc_cost(model, input_t, output_t))
+                raw_cost = obj.get("costUSD")
+                cost     = float(raw_cost) if raw_cost is not None else _calc_cost(model, input_t, output_t)
                 ts       = _parse_ts(obj.get("timestamp"))
                 events.append({
                     "tool": "claude_code",
@@ -107,7 +110,7 @@ def parse_codex_jsonl(path: str, project: str) -> list[dict[str, Any]]:
                     continue
                 try:
                     obj = json.loads(line)
-                except json.JSONDecodeError:
+                except (json.JSONDecodeError, ValueError, TypeError, KeyError):
                     continue
                 if obj.get("role") != "assistant":
                     continue
@@ -115,7 +118,8 @@ def parse_codex_jsonl(path: str, project: str) -> list[dict[str, Any]]:
                 model    = obj.get("model")
                 input_t  = int(usage.get("prompt_tokens", 0))
                 output_t = int(usage.get("completion_tokens", 0))
-                cost     = float(obj.get("cost") or _calc_cost(model, input_t, output_t))
+                raw_cost = obj.get("cost")
+                cost     = float(raw_cost) if raw_cost is not None else _calc_cost(model, input_t, output_t)
                 ts       = _parse_ts(obj.get("timestamp"))
                 events.append({
                     "tool": "codex",
@@ -166,7 +170,8 @@ async def fetch_antigravity_ls(
                 input_t  = int(usage.get("inputTokens", 0))
                 output_t = int(usage.get("outputTokens", 0))
                 cache_r  = int(usage.get("cachedTokens", 0))
-                cost     = float(data.get("cost") or _calc_cost(model, input_t, output_t))
+                raw_cost = data.get("cost")
+                cost     = float(raw_cost) if raw_cost is not None else _calc_cost(model, input_t, output_t)
                 ts       = _parse_ts(data.get("timestamp"))
                 return {
                     "status": "live",

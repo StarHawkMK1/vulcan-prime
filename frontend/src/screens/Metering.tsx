@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { nebTokens as t, NebPanel, NebButton } from '../design';
 import {
   getMeteringDashboard, refreshMetering, exportToVault,
@@ -214,7 +214,7 @@ function TrendChart({ entries, weeklyTotal }: {
   weeklyTotal: { tokens: number; cost_usd: number };
 }) {
   const today = new Date().toISOString().slice(0, 10);
-  const maxTotal = Math.max(1, ...entries.map(e => e.claude_code + e.codex + e.antigravity));
+  const maxTotal = Math.max(1, ...entries.map(e => e.claude_code + e.codex + (e.antigravity ?? 0)));
 
   return (
     <NebPanel padding={12}>
@@ -232,7 +232,7 @@ function TrendChart({ entries, weeklyTotal }: {
         {entries.map((e) => {
           const isToday = e.date === today;
           const alpha = isToday ? 'cc' : '55';
-          const total = e.claude_code + e.codex + e.antigravity;
+          const total = e.claude_code + e.codex + (e.antigravity ?? 0);
           const totalH = Math.round((total / maxTotal) * CHART_H);
           const ccH = total > 0 ? Math.round((e.claude_code / total) * totalH) : 0;
           const cxH = total > 0 ? Math.round((e.codex / total) * totalH) : 0;
@@ -301,6 +301,7 @@ export function Metering() {
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportMsg, setExportMsg] = useState<string | null>(null);
+  const exportTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(() => {
     getMeteringDashboard().then(setData).catch(() => {});
@@ -309,7 +310,10 @@ export function Metering() {
   useEffect(() => {
     load();
     const id = setInterval(load, 30_000);
-    return () => clearInterval(id);
+    return () => {
+      clearInterval(id);
+      if (exportTimer.current !== null) clearTimeout(exportTimer.current);
+    };
   }, [load]);
 
   const handleRefresh = async () => {
@@ -332,7 +336,8 @@ export function Metering() {
       setExportMsg('✗ Export failed');
     } finally {
       setExporting(false);
-      setTimeout(() => setExportMsg(null), 4000);
+      if (exportTimer.current !== null) clearTimeout(exportTimer.current);
+      exportTimer.current = setTimeout(() => setExportMsg(null), 4000);
     }
   };
 

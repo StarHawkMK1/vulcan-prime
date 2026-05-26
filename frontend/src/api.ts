@@ -55,3 +55,68 @@ export async function getVaultList(dir: string): Promise<string[]> {
   if (!res.ok) throw new Error(`vault/list failed: ${res.status}`);
   return ((await res.json()).paths) as string[];
 }
+
+// ── Metering ──────────────────────────────────────────────
+
+export interface WindowData {
+  tokens: number | null;
+  limit: number;
+  resets_in_sec: number | null;
+}
+
+export interface WeeklyData {
+  tokens: number | null;
+  limit: number;
+  cost_usd: number | null;
+}
+
+export interface TodayData {
+  tokens: number | null;
+  cost_usd: number | null;
+  sessions: number | null;
+}
+
+export interface ToolMetrics {
+  status: 'live' | 'offline';
+  last_seen?: string | null;
+  window_5h: WindowData;
+  weekly: WeeklyData;
+  today: TodayData;
+}
+
+export interface TrendEntry {
+  date: string;
+  claude_code: number;
+  codex: number;
+  antigravity: number;
+  cost_usd: number;
+}
+
+export interface MeteringDashboard {
+  scanned_at: string;
+  tools: {
+    claude_code: ToolMetrics;
+    codex: ToolMetrics;
+    antigravity: ToolMetrics;
+  };
+  trend_7d: TrendEntry[];
+  weekly_total: { tokens: number; cost_usd: number };
+}
+
+export async function getMeteringDashboard(): Promise<MeteringDashboard> {
+  const res = await fetch(`${BASE}/metering/dashboard`);
+  if (!res.ok) throw new Error(`metering/dashboard failed: ${res.status}`);
+  return res.json();
+}
+
+export async function refreshMetering(): Promise<{ ok: boolean; scanned_at: string }> {
+  const res = await fetch(`${BASE}/metering/refresh`, { method: 'POST' });
+  if (!res.ok) throw new Error(`metering/refresh failed: ${res.status}`);
+  return res.json();
+}
+
+export async function exportToVault(): Promise<{ ok: boolean; path: string }> {
+  const res = await fetch(`${BASE}/metering/export`, { method: 'POST' });
+  if (!res.ok) throw new Error(`metering/export failed: ${res.status}`);
+  return res.json();
+}

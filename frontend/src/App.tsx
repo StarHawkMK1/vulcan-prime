@@ -7,6 +7,7 @@ import { Ingest } from './screens/Ingest';
 import { Query } from './screens/Query';
 import { Lint } from './screens/Lint';
 import { Stub } from './screens/Stub';
+import { Metering } from './screens/Metering';
 
 const ROUTES: Record<ScreenId, {
   breadcrumb: string[]; status?: string; env?: string;
@@ -24,7 +25,7 @@ const ROUTES: Record<ScreenId, {
   experiments: { breadcrumb: ['Test', 'A/B Experiments'], component: () => <Stub label="A/B Experiments" phase="M2" /> },
   evals:       { breadcrumb: ['Test', 'Evaluations'], component: () => <Stub label="Evaluations" phase="M2" /> },
   logs:        { breadcrumb: ['Operate', 'Logs & Traces'], component: () => <Stub label="Logs & Traces" phase="M3" /> },
-  usage:       { breadcrumb: ['Operate', 'Usage & Cost'], component: () => <Stub label="Usage & Cost" phase="M3" /> },
+  usage:       { breadcrumb: ['Operate', 'Usage & Cost'], status: 'LIVE', env: 'local', component: () => <Metering /> },
   providers:   { breadcrumb: ['Operate', 'Providers'], component: () => <Stub label="Providers" phase="M2" /> },
   news:        { breadcrumb: ['Discover', 'AI News'], component: () => <Stub label="AI News" phase="M5" /> },
 };

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { nebTokens as t, NebPanel, NebButton } from '../design';
 import {
   getMeteringDashboard, refreshMetering, exportToVault,
-  type MeteringDashboard, type ToolMetrics, type TrendEntry,
+  type MeteringDashboard, type ToolMetrics, type TrendEntry, type ChangelogEntry,
 } from '../api';
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -295,6 +295,90 @@ function TrendChart({ entries, weeklyTotal }: {
   );
 }
 
+// ── Changelog Panel ───────────────────────────────────────
+
+const CHANGELOG_COLORS: Record<string, string> = {
+  claude_code: '#7af0ff',
+  codex: '#9d7ad8',
+  gemini_code: '#00ff90',
+};
+
+function ChangelogPanel({ entries }: { entries: ChangelogEntry[] }) {
+  if (entries.length === 0) return null;
+  return (
+    <NebPanel padding={12}>
+      <div style={{
+        fontFamily: t.mono, fontSize: 9.5, fontWeight: 700,
+        color: t.textFaint, letterSpacing: 1.5, textTransform: 'uppercase',
+        marginBottom: 10,
+      }}>
+        Changelog Tracker
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {entries.map((e) => {
+          const color = CHANGELOG_COLORS[e.key] ?? t.textMuted;
+          const hasData = e.version !== null;
+          return (
+            <div
+              key={e.key}
+              onClick={() => e.url && window.open(e.url, '_blank')}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '110px 70px 1fr 80px',
+                alignItems: 'center',
+                gap: 10,
+                padding: '6px 0',
+                borderBottom: `1px solid ${t.border}`,
+                opacity: hasData ? 1 : 0.4,
+                cursor: e.url ? 'pointer' : 'default',
+              }}
+            >
+              {/* Tool name */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{
+                  width: 6, height: 6, borderRadius: '50%',
+                  background: color,
+                  boxShadow: hasData ? `0 0 6px ${color}` : 'none',
+                  flex: '0 0 auto',
+                }} />
+                <span style={{ fontFamily: t.mono, fontSize: 10, color: t.text }}>
+                  {e.tool}
+                </span>
+              </div>
+              {/* Version badge */}
+              <span style={{
+                fontFamily: t.mono, fontSize: 8.5, fontWeight: 600,
+                padding: '2px 6px',
+                background: hasData ? `${color}18` : 'transparent',
+                border: `1px solid ${hasData ? color + '44' : t.border}`,
+                color: hasData ? color : t.textFaint,
+                letterSpacing: 0.5,
+                whiteSpace: 'nowrap',
+              }}>
+                {e.version ?? '—'}
+              </span>
+              {/* Title */}
+              <span style={{
+                fontFamily: t.mono, fontSize: 9.5, color: t.textMuted,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {e.title ?? '수집 불가'}
+              </span>
+              {/* Date */}
+              <span style={{
+                fontFamily: t.mono, fontSize: 9, color: t.textFaint,
+                textAlign: 'right',
+              }}>
+                {e.date ?? '—'}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </NebPanel>
+  );
+}
+
 // ── Main ──────────────────────────────────────────────────────
 
 export function Metering() {
@@ -372,6 +456,7 @@ export function Metering() {
       {data.trend_7d.length > 0 && (
         <TrendChart entries={data.trend_7d} weeklyTotal={data.weekly_total} />
       )}
+      <ChangelogPanel entries={data.changelogs ?? []} />
     </div>
   );
 }

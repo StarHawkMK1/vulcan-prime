@@ -19,9 +19,15 @@ from agents.lint import LINT_SYSTEM_PROMPT, get_lint_user_message
 from metering.db import MeteringDB
 from metering.scanner import scan_claude_code, scan_codex, fetch_antigravity_ls
 from metering.aggregator import build_dashboard_payload, week_start, today_start
+from feed.collector import collect_all as collect_all_feeds, fetch_changelogs
+from feed.store import FeedStore
 
 load_dotenv()
-vault_tools.set_vault_root(os.getenv("VAULT_PATH", "./vault"))
+_vault_path = os.getenv("VAULT_PATH")
+if _vault_path:
+    vault_tools.set_vault_root(_vault_path)
+elif vault_tools._vault_root is None:
+    vault_tools.set_vault_root("./vault")
 
 _METERING_DB_PATH  = os.getenv("METERING_DB_PATH", ".metering.db")
 _metering_db       = MeteringDB(_METERING_DB_PATH)
@@ -38,6 +44,9 @@ _LIMITS = {
 }
 _ag_status: str = "offline"
 _ag_last_seen: str | None = None
+_FEED_COLLECT_INTERVAL  = int(os.getenv("FEED_COLLECT_INTERVAL",  "3600"))
+_CHANGELOG_INTERVAL     = int(os.getenv("CHANGELOG_COLLECT_INTERVAL", "21600"))
+_changelog_cache: list[dict] = []
 
 _background_tasks: set[asyncio.Task] = set()
 
@@ -68,11 +77,40 @@ async def _scan_loop() -> None:
         await asyncio.sleep(_SCAN_INTERVAL)
 
 
+async def _do_feed_collect() -> None:
+    await asyncio.to_thread(collect_all_feeds)
+
+
+async def _collect_loop() -> None:
+    while True:
+        try:
+            await _do_feed_collect()
+        except Exception:
+            pass
+        await asyncio.sleep(_FEED_COLLECT_INTERVAL)
+
+
+async def _changelog_loop() -> None:
+    global _changelog_cache
+    while True:
+        try:
+            entries = await asyncio.to_thread(fetch_changelogs)
+            _changelog_cache = [
+                {"tool": e.tool, "key": e.key, "version": e.version,
+                 "title": e.title, "date": e.date, "url": e.url}
+                for e in entries
+            ]
+        except Exception:
+            pass
+        await asyncio.sleep(_CHANGELOG_INTERVAL)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    scan_task = asyncio.create_task(_scan_loop())
-    _background_tasks.add(scan_task)
-    scan_task.add_done_callback(_background_tasks.discard)
+    for coro in [_scan_loop(), _collect_loop(), _changelog_loop()]:
+        t = asyncio.create_task(coro)
+        _background_tasks.add(t)
+        t.add_done_callback(_background_tasks.discard)
     yield
     for task in list(_background_tasks):
         task.cancel()
@@ -116,6 +154,17 @@ class LintRequest(BaseModel):
 
 class ApproveRequest(BaseModel):
     approved: bool
+
+
+class FeedStatusRequest(BaseModel):
+    slug: str
+    status: str  # "unread" | "ingested" | "dismissed"
+
+
+class FeedIngestRequest(BaseModel):
+    slugs: list[str]
+    provider: str = "anthropic"
+    model: str = "claude-sonnet-4-6"
 
 
 @app.post("/api/ingest")
@@ -179,7 +228,7 @@ async def approve(op_id: str, req: ApproveRequest):
 async def metering_dashboard():
     import time
     now = int(time.time())
-    return build_dashboard_payload(
+    payload = build_dashboard_payload(
         db=_metering_db, now=now,
         week_start_ts=week_start(now),
         today_start_ts=today_start(now),
@@ -187,6 +236,8 @@ async def metering_dashboard():
         ag_status=_ag_status,
         ag_last_seen=_ag_last_seen,
     )
+    payload["changelogs"] = _changelog_cache
+    return payload
 
 
 @app.post("/api/metering/refresh")
@@ -270,3 +321,52 @@ async def status():
 @app.get("/api/vault/list")
 async def vault_list(dir: str = "raw"):
     return {"paths": vault_tools.vault_list(dir)}
+
+
+@app.get("/api/feed/items")
+async def feed_items():
+    store = FeedStore()
+    return {"items": [
+        {"slug": slug, "title": item.title, "url": item.url,
+         "source": item.source, "category": item.category,
+         "status": item.status, "fetched_at": item.fetched_at,
+         "summary": item.summary}
+        for slug, item in store.list_items()
+    ]}
+
+
+@app.post("/api/feed/refresh")
+async def feed_refresh():
+    from datetime import datetime, timezone
+    await _do_feed_collect()
+    return {"ok": True, "collected_at": datetime.now(timezone.utc).isoformat()}
+
+
+@app.post("/api/feed/status")
+async def feed_status(req: FeedStatusRequest):
+    store = FeedStore()
+    ok = store.update_status(req.slug, req.status)
+    if not ok:
+        raise HTTPException(status_code=404, detail=f"Feed item not found: {req.slug!r}")
+    return {"ok": True}
+
+
+@app.post("/api/feed/ingest")
+async def feed_ingest(req: FeedIngestRequest):
+    store = FeedStore()
+    op_ids: list[str] = []
+    for slug in req.slugs:
+        path = slug if slug.endswith(".md") else slug + ".md"
+        op_id = str(uuid.uuid4())
+        stream_mod.create_op(op_id)
+        system = _base_system_prompt() + INGEST_SYSTEM_PROMPT
+        msg = get_ingest_user_message(path)
+        task = asyncio.create_task(
+            run_agent(op_id, system, msg, req.provider, req.model, get_ingest_tools())
+        )
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
+        stream_mod.record_op("ingest", path)
+        store.update_status(slug, "ingested")
+        op_ids.append(op_id)
+    return {"op_ids": op_ids}

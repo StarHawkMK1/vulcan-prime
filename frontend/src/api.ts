@@ -92,6 +92,15 @@ export interface TrendEntry {
   cost_usd: number;
 }
 
+export interface ChangelogEntry {
+  tool: string;
+  key: string;
+  version: string | null;
+  title: string | null;
+  date: string | null;
+  url: string | null;
+}
+
 export interface MeteringDashboard {
   scanned_at: string;
   tools: {
@@ -101,6 +110,7 @@ export interface MeteringDashboard {
   };
   trend_7d: TrendEntry[];
   weekly_total: { tokens: number; cost_usd: number };
+  changelogs: ChangelogEntry[];
 }
 
 export async function getMeteringDashboard(): Promise<MeteringDashboard> {
@@ -119,4 +129,55 @@ export async function exportToVault(): Promise<{ ok: boolean; path: string }> {
   const res = await fetch(`${BASE}/metering/export`, { method: 'POST' });
   if (!res.ok) throw new Error(`metering/export failed: ${res.status}`);
   return res.json();
+}
+
+// ── Feed ──────────────────────────────────────────────────
+
+export type FeedCategory = 'news' | 'ai-official';
+export type FeedStatus = 'unread' | 'ingested' | 'dismissed';
+
+export interface FeedItem {
+  slug: string;           // e.g. "feed/2026-05-27-abc12345"
+  title: string;
+  url: string;
+  source: string;
+  category: FeedCategory;
+  status: FeedStatus;
+  fetched_at: string;     // ISO 8601
+  summary: string;
+}
+
+export async function getFeedItems(): Promise<FeedItem[]> {
+  const res = await fetch(`${BASE}/feed/items`);
+  if (!res.ok) throw new Error(`feed/items failed: ${res.status}`);
+  return ((await res.json()).items) as FeedItem[];
+}
+
+export async function refreshFeed(): Promise<{ ok: boolean; collected_at: string }> {
+  const res = await fetch(`${BASE}/feed/refresh`, { method: 'POST' });
+  if (!res.ok) throw new Error(`feed/refresh failed: ${res.status}`);
+  return res.json();
+}
+
+export async function setFeedStatus(slug: string, status: FeedStatus): Promise<void> {
+  const res = await fetch(`${BASE}/feed/status`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug, status }),
+  });
+  if (!res.ok) throw new Error(`feed/status failed: ${res.status}`);
+}
+
+export async function ingestFeedItems(
+  slugs: string[],
+  provider = 'anthropic',
+  model = 'claude-sonnet-4-6',
+): Promise<string[]> {
+  const res = await fetch(`${BASE}/feed/ingest`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slugs, provider, model }),
+  });
+  if (!res.ok) throw new Error(`feed/ingest failed: ${res.status}`);
+  return ((await res.json()).op_ids) as string[];
 }

@@ -74,6 +74,7 @@ const EMPTY: MeteringDashboard = {
   },
   trend_7d: [],
   weekly_total: { tokens: 0, cost_usd: 0 },
+  changelogs: [],
 };
 
 // ── Progress Bar ──────────────────────────────────────────────

@@ -12,10 +12,11 @@ interface Props {
   status?: string;
   env?: string;
   actions?: ReactNode;
+  feedBadge?: number;
   children: ReactNode;
 }
 
-export function AppShell({ active, onNav, breadcrumb, status, env, actions, children }: Props) {
+export function AppShell({ active, onNav, breadcrumb, status, env, actions, feedBadge, children }: Props) {
   const [collapsed, setCollapsed] = useState(false);
   const sidebarW = collapsed ? 64 : 240;
 
@@ -94,10 +95,20 @@ export function AppShell({ active, onNav, breadcrumb, status, env, actions, chil
                     }}>
                     <NavIcon id={it.id} color={isActive ? t.cyan : t.textMuted} />
                     {!collapsed && <span style={{ flex: 1 }}>{it.label}</span>}
-                    {!collapsed && it.badge && (
-                      <span style={{ fontSize: 9, fontFamily: t.mono, color: t.cyan,
-                        padding: '1px 6px', border: `1px solid ${t.border}`, letterSpacing: 0.5 }}>{it.badge}</span>
-                    )}
+                    {!collapsed && (() => {
+                      const badge = it.id === 'news' && feedBadge && feedBadge > 0
+                        ? String(feedBadge)
+                        : it.badge;
+                      const badgeColor = it.id === 'news' && feedBadge && feedBadge > 0 ? t.warn : t.cyan;
+                      const badgeBorder = it.id === 'news' && feedBadge && feedBadge > 0
+                        ? `1px solid ${t.warn}55` : `1px solid ${t.border}`;
+                      return badge ? (
+                        <span style={{
+                          fontSize: 9, fontFamily: t.mono, color: badgeColor,
+                          padding: '1px 6px', border: badgeBorder, letterSpacing: 0.5,
+                        }}>{badge}</span>
+                      ) : null;
+                    })()}
                   </button>
                 );
               })}

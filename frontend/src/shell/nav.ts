@@ -27,7 +27,7 @@ export const NAV: NavGroup[] = [
     { id: 'providers', label: 'Providers',     badge: '3'  },
   ]},
   { group: 'DISCOVER', items: [
-    { id: 'news', label: 'AI News', badge: 'M5' },
+    { id: 'news', label: 'AI News' },
   ]},
 ];
 

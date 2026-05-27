@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import './App.css';
 import { AppShell } from './shell/AppShell';
 import type { ScreenId } from './shell/nav';
@@ -8,10 +8,11 @@ import { Query } from './screens/Query';
 import { Lint } from './screens/Lint';
 import { Stub } from './screens/Stub';
 import { Metering } from './screens/Metering';
+import { Feed } from './screens/Feed';
 
 const ROUTES: Record<ScreenId, {
   breadcrumb: string[]; status?: string; env?: string;
-  component: () => React.JSX.Element;
+  component: (props: { onUnreadCount?: (n: number) => void }) => React.JSX.Element;
 }> = {
   dashboard:   { breadcrumb: ['Workspace', 'Dashboard'], status: 'LIVE', env: 'local', component: () => <Dashboard /> },
   ingest:      { breadcrumb: ['Knowledge', 'Ingest'], env: 'local', component: () => <Ingest /> },
@@ -27,20 +28,26 @@ const ROUTES: Record<ScreenId, {
   logs:        { breadcrumb: ['Operate', 'Logs & Traces'], component: () => <Stub label="Logs & Traces" phase="M3" /> },
   usage:       { breadcrumb: ['Operate', 'Usage & Cost'], status: 'LIVE', env: 'local', component: () => <Metering /> },
   providers:   { breadcrumb: ['Operate', 'Providers'], component: () => <Stub label="Providers" phase="M2" /> },
-  news:        { breadcrumb: ['Discover', 'AI News'], component: () => <Stub label="AI News" phase="M5" /> },
+  news:        { breadcrumb: ['Discover', 'AI News'], status: 'LIVE', env: 'local',
+                 component: ({ onUnreadCount }) => <Feed onUnreadCount={onUnreadCount} /> },
 };
 
 export default function App() {
   const [active, setActive] = useState<ScreenId>('dashboard');
+  const [feedBadge, setFeedBadge] = useState(0);
   const route = ROUTES[active] ?? ROUTES.dashboard;
+
+  const handleUnreadCount = useCallback((n: number) => setFeedBadge(n), []);
+
   return (
     <AppShell
       active={active}
       onNav={setActive}
       breadcrumb={route.breadcrumb}
       status={route.status}
-      env={route.env}>
-      {route.component()}
+      env={route.env}
+      feedBadge={feedBadge}>
+      {route.component({ onUnreadCount: handleUnreadCount })}
     </AppShell>
   );
 }

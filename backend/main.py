@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 import stream as stream_mod
 import vault_tools
@@ -21,6 +21,12 @@ from metering.scanner import scan_claude_code, scan_codex, fetch_antigravity_ls
 from metering.aggregator import build_dashboard_payload, week_start, today_start
 from feed.collector import collect_all as collect_all_feeds, fetch_changelogs
 from feed.store import FeedStore
+
+import re as _re
+
+def _validate_feed_slug(slug: str) -> bool:
+    """Accept only safe feed slugs: feed/YYYY-MM-DD-xxxxxxxx or feed/YYYY-MM-DD-xxxxxxxx.md"""
+    return bool(_re.fullmatch(r'feed/[\w-]+(?:\.md)?', slug))
 
 load_dotenv()
 _vault_path = os.getenv("VAULT_PATH")
@@ -159,6 +165,14 @@ class ApproveRequest(BaseModel):
 class FeedStatusRequest(BaseModel):
     slug: str
     status: str  # "unread" | "ingested" | "dismissed"
+
+    @field_validator('status')
+    @classmethod
+    def validate_status(cls, v: str) -> str:
+        allowed = {'unread', 'ingested', 'dismissed'}
+        if v not in allowed:
+            raise ValueError(f"status must be one of {allowed}")
+        return v
 
 
 class FeedIngestRequest(BaseModel):
@@ -344,6 +358,8 @@ async def feed_refresh():
 
 @app.post("/api/feed/status")
 async def feed_status(req: FeedStatusRequest):
+    if not _validate_feed_slug(req.slug):
+        raise HTTPException(status_code=400, detail="Invalid slug format")
     store = FeedStore()
     ok = store.update_status(req.slug, req.status)
     if not ok:
@@ -356,6 +372,8 @@ async def feed_ingest(req: FeedIngestRequest):
     store = FeedStore()
     op_ids: list[str] = []
     for slug in req.slugs:
+        if not _validate_feed_slug(slug):
+            raise HTTPException(status_code=400, detail=f"Invalid slug format: {slug!r}")
         path = slug if slug.endswith(".md") else slug + ".md"
         op_id = str(uuid.uuid4())
         stream_mod.create_op(op_id)

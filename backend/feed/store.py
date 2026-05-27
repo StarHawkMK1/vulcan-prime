@@ -7,6 +7,8 @@ from pathlib import Path
 import vault_tools
 from feed.collector import FeedItem, _url_slug
 
+_SLUG_RE = re.compile(r'-([0-9a-f]{8})(?:\.md)?$')
+
 
 def _today() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -54,13 +56,18 @@ class FeedStore:
         return f"feed/{slug}.md"
 
     def write_if_new(self, item: FeedItem) -> bool:
-        slug = self._slug_for_url(item.url)
-        path = f"feed/{slug}.md"
+        url_hash = _url_slug(item.url)
+        # Check if any existing file already covers this URL (by hash suffix)
         try:
-            vault_tools.vault_read(path)
-            return False  # already exists
+            existing = vault_tools.vault_list("feed")
+            for path in existing:
+                m = _SLUG_RE.search(path)
+                if m and m.group(1) == url_hash:
+                    return False  # already stored
         except Exception:
             pass
+        slug = f"{_today()}-{url_hash}"
+        path = f"feed/{slug}.md"
         vault_tools.vault_write(path, _item_to_md(item))
         return True
 

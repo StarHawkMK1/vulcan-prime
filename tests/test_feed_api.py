@@ -9,9 +9,18 @@ import vault_tools
 
 @pytest.fixture(autouse=True)
 def set_vault(tmp_path):
+    # Set both the env var and the in-memory root so that importlib.reload(main)
+    # inside the `app` fixture also picks up the correct tmp_path rather than
+    # inheriting VAULT_PATH left over from other test modules.
+    original_env = os.environ.get("VAULT_PATH")
+    os.environ["VAULT_PATH"] = str(tmp_path)
     vault_tools.set_vault_root(str(tmp_path))
     (tmp_path / "feed").mkdir()
     yield
+    if original_env is None:
+        os.environ.pop("VAULT_PATH", None)
+    else:
+        os.environ["VAULT_PATH"] = original_env
 
 
 @pytest.fixture()
